@@ -1,0 +1,189 @@
+Select *
+from Nashville_Housing
+
+-- 1. Change sales date format to a standardize version
+
+Select SaleDate, convert(date, SaleDate)
+from Nashville_Housing
+
+Alter table Nashville_Housing
+Add SalesDate Date;
+
+update Nashville_Housing
+set SalesDate = convert(date, SaleDate)
+
+Select SalesDate
+from Nashville_Housing
+
+
+
+--2. Populate Property Address 
+-- Make a self-join and Populate ( i.e: check and fill in the blank spaces)
+
+select PropertyAddress
+from Nashville_Housing
+--where PropertyAddress is null
+
+select *
+from Nashville_Housing
+where PropertyAddress is null
+
+
+select *
+from Nashville_Housing
+where PropertyAddress is null
+order by ParcelID
+
+select A.ParcelID, A.PropertyAddress, B.ParcelID, B.PropertyAddress, ISNULL(A.PropertyAddress, B.PropertyAddress)
+from PortfolioProject.dbo.Nashville_Housing as A
+join PortfolioProject.dbo.Nashville_Housing as B
+	ON A.ParcelID = B.ParcelID
+	And A.[UniqueID ]<> B.[UniqueID ]
+Where A.PropertyAddress is Null
+
+Update A
+set A.PropertyAddress =  ISNULL(A.PropertyAddress, B.PropertyAddress)
+from PortfolioProject.dbo.Nashville_Housing as A
+join PortfolioProject.dbo.Nashville_Housing as B
+	ON A.ParcelID = B.ParcelID
+	And A.[UniqueID ]<> B.[UniqueID ]
+Where A.PropertyAddress is Null
+
+
+
+-- 3. Breakdown Address info ( Address, City, State) [ PropertyCityNew, PropertyCityNew ]
+
+select PropertyAddress
+from Nashville_Housing
+
+
+SELECT 
+SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1) as PropertyAddressNew
+, SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1, LEN(PropertyAddress)) as PropertyCityNew
+from Nashville_Housing
+
+
+Alter table Nashville_Housing
+Add PropertyAddressNew Nvarchar(255);
+
+update Nashville_Housing
+set PropertyAddressNew = SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1)
+
+
+Alter table Nashville_Housing
+Add PropertyCityNew Nvarchar (255);
+
+update Nashville_Housing
+set PropertyCityNew = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1, LEN(PropertyAddress))
+
+
+select * 
+from Nashville_Housing
+
+
+select OwnerAddress
+from Nashville_Housing
+
+
+select
+Parsename ( Replace (OwnerAddress, ',','.'), 3) as OwnersAddress
+, Parsename ( Replace (OwnerAddress, ',','.'), 2) as OwnersCity
+, Parsename ( Replace (OwnerAddress, ',','.'), 1) as OwnersState
+from Nashville_Housing
+
+Alter table Nashville_Housing
+Add OwnersAddress Nvarchar (255);
+
+update Nashville_Housing
+set OwnersAddress = Parsename ( Replace (OwnerAddress, ',','.'), 3) 
+
+Alter table Nashville_Housing
+Add OwnersCity Nvarchar (255);
+
+update Nashville_Housing
+set OwnersCity = Parsename ( Replace (OwnerAddress, ',','.'), 2) 
+
+Alter table Nashville_Housing
+Add OwnersState Nvarchar (255);
+
+update Nashville_Housing
+set OwnersState = Parsename ( Replace (OwnerAddress, ',','.'), 1) 
+
+select *
+from Nashville_Housing
+
+
+-- 4. Change 'Y' and 'N' to 'Yes' and 'No' in 'Sold as Vacant' field
+
+select Distinct (SoldAsVacant), count(SoldAsVacant)
+from Nashville_Housing
+Group by SoldAsVacant
+Order by 2;
+
+select SoldAsVacant,
+case when SoldAsVacant = 'Y' then 'Yes'
+	 when SoldAsVacant = 'N' then 'No'
+	 Else SoldAsVacant
+	 END
+from Nashville_Housing
+
+
+
+update Nashville_Housing
+set SoldAsVacant = case when SoldAsVacant = 'Y' then 'Yes'
+	 when SoldAsVacant = 'N' then 'No'
+	 Else SoldAsVacant
+	 END
+
+
+
+--5. REMOVE DUPLICATES 
+-- Delete
+
+Select *
+from Nashville_Housing
+
+
+WITH RemDepCTE AS (
+select *, 
+	ROW_NUMBER() over (
+	Partition by UniqueID,
+				 ParcelID,
+				 PropertyAddress,
+				 SaleDate,
+				 LegalReference
+                 Order by 
+				 UniqueID ) RemoDup 
+from Nashville_Housing
+)
+select *
+From RemDepCTE
+where RemoDup > 1
+order by PropertyAddress
+
+
+
+WITH RemDepCTE AS (
+select *, 
+	ROW_NUMBER() over (
+	Partition by UniqueID,
+				 ParcelID,
+				 PropertyAddress,
+				 SaleDate,
+				 LegalReference
+                 Order by 
+				 UniqueID ) RemoDup 
+from Nashville_Housing
+)
+Delete
+From RemDepCTE
+where RemoDup > 1
+
+
+-- Delete unused columns
+
+Select *
+from Nashville_Housing
+
+Alter Table Nashville_Housing 
+Drop column Owneraddress, PropertyAddress
